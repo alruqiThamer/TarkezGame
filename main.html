@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة التركيز</title>
+    <style>
+        /* --- CSS Styling --- */
+        :root {
+            --bg-color: #0a0a23; /* خلفية داكنة */
+            --primary-color: #00f0ff; /* لون سيان نيون */
+            --secondary-color: #ff00ff; /* لون ماجنتا نيون */
+            --accent-color: #39ff14; /* لون أخضر نيون */
+            --text-color: #f0f0f0; /* لون نص فاتح */
+            --square-bg: #1b1b32; /* خلفية المربع */
+            --square-border: var(--primary-color);
+            --square-active-bg: var(--primary-color);
+            --square-active-shadow: 0 0 15px var(--primary-color), 0 0 25px var(--primary-color);
+            --square-hit-bg: var(--accent-color);
+            --square-hit-shadow: 0 0 15px var(--accent-color);
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: var(--square-active-shadow); transform: scale(1); }
+            50% { box-shadow: 0 0 25px var(--primary-color), 0 0 40px var(--primary-color); transform: scale(1.05); }
+            100% { box-shadow: var(--square-active-shadow); transform: scale(1); }
+        }
+
+        @keyframes hit {
+            0% { background-color: var(--square-hit-bg); box-shadow: var(--square-hit-shadow); transform: scale(0.9); }
+            100% { background-color: var(--square-bg); box-shadow: none; transform: scale(1); } /* العودة للشكل الطبيعي */
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes backgroundAnimation {
+            0% { background-position: 0 0; }
+            50% { background-position: 100% 100%; }
+            100% { background-position: 0 0; }
+        }
+
+        @keyframes techBackground {
+            0% {
+                background-position: 0 0;
+            }
+            50% {
+                background-position: 100% 100%;
+            }
+            100% {
+                background-position: 0 0;
+            }
+        }
+
+        body {
+            font-family: 'Courier New', Courier, monospace; /* خط تقني */
+            background: linear-gradient(135deg, #0a0a23, #1b1b32, #0a0a23), 
+                        url('https://www.transparenttextures.com/patterns/circuit-board.png'); /* نمط لوحة الدوائر */
+            background-size: 400% 400%, auto; /* تحريك التدرج، إبقاء النمط ثابتًا */
+            animation: techBackground 10s infinite linear; /* حركة سلسة للتدرج */
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden; /* لمنع ظهور شرائط التمرير عند الحركة */
+        }
+
+        .game-container {
+            background-color: rgba(27, 27, 50, 0.8); /* خلفية شبه شفافة */
+            border: 2px solid var(--secondary-color);
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 0 20px rgba(255, 0, 255, 0.5);
+            text-align: center;
+            animation: fadeIn 0.8s ease-out;
+            max-width: 90%;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            text-shadow: 0 0 8px var(--primary-color);
+            margin-bottom: 20px;
+        }
+
+        .info-panel {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 25px;
+            font-size: 1.2em;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid var(--accent-color);
+        }
+
+        .info-panel span {
+            color: var(--accent-color);
+            font-weight: bold;
+        }
+        .info-panel span strong {
+             color: var(--text-color);
+             margin-left: 5px;
+        }
+
+
+        #game-board {
+            display: grid;
+            gap: 10px; /* مسافة بين المربعات */
+            margin: 20px auto;
+            transition: all 0.3s ease; /* انتقال سلس عند تغيير الحجم */
+            max-width: 400px; /* حد أقصى لعرض اللوحة */
+            width: 100%;
+        }
+
+        .square {
+            background-color: var(--square-bg);
+            border: 2px solid var(--square-border);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+            aspect-ratio: 1 / 1; /* للحفاظ على شكل المربع */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .square:hover {
+             border-color: var(--secondary-color);
+        }
+
+        .square.active {
+            background-color: var(--square-active-bg);
+            box-shadow: var(--square-active-shadow);
+            animation: pulse 0.7s infinite alternate ease-in-out;
+            z-index: 10; /* لضمان ظهوره فوق الآخرين عند التداخل الطفيف */
+        }
+
+        .square.hit {
+            animation: hit 0.3s ease-out forwards; /* forwards للحفاظ على الحالة النهائية */
+            cursor: default; /* لا يمكن الضغط مرة أخرى فورًا */
+        }
+
+        #start-button, #restart-button {
+            background-color: var(--accent-color);
+            color: var(--bg-color);
+            border: none;
+            padding: 12px 25px;
+            font-size: 1.1em;
+            font-family: inherit;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+
+        #start-button:hover, #restart-button:hover {
+            background-color: #fff;
+            box-shadow: 0 0 15px var(--accent-color);
+        }
+
+        #start-button:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        #game-over-message {
+            display: none; /* مخفي افتراضيًا */
+            margin-top: 20px;
+            font-size: 1.5em;
+            color: var(--secondary-color);
+            text-shadow: 0 0 10px var(--secondary-color);
+            animation: fadeIn 0.5s;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            .game-container {
+                padding: 15px;
+            }
+            h1 {
+                font-size: 1.8em;
+            }
+            .info-panel {
+                font-size: 1em;
+                flex-direction: column; /* Stack info vertically on small screens */
+                gap: 5px;
+                align-items: center;
+            }
+             #game-board {
+                gap: 5px;
+                 max-width: 300px;
+            }
+            .square {
+                border-width: 1px;
+            }
+             #start-button, #restart-button {
+                 padding: 10px 20px;
+                 font-size: 1em;
+             }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <h1>لعبة التركيز</h1>
+
+        <div class="info-panel">
+            <span>الجولة: <strong id="round">1</strong></span>
+            <span>النقاط: <strong id="score">0</strong></span>
+            <span>الوقت المتبقي: <strong id="time-left">60</strong></span>
+        </div>
+
+        <div id="game-board">
+            <!-- المربعات ستضاف هنا بواسطة JavaScript -->
+        </div>
+
+        <button id="start-button">ابدأ اللعب</button>
+
+        <div id="game-over-message">
+            انتهت اللعبة! نتيجتك النهائية: <span id="final-score">0</span>
+            <button id="restart-button" style="display: none; margin-top: 15px;">إعادة اللعب</button>
+        </div>
+    </div>
+
+    <div class="background-objects">
+        <div class="object"></div>
+        <div class="object"></div>
+        <div class="object"></div>
+    </div>
+
+    <script>
+        // --- JavaScript Logic ---
+
+        const gameBoard = document.getElementById('game-board');
+        const scoreDisplay = document.getElementById('score');
+        const timeLeftDisplay = document.getElementById('time-left');
+        const roundDisplay = document.getElementById('round');
+        const startButton = document.getElementById('start-button');
+        const gameOverMessage = document.getElementById('game-over-message');
+        const finalScoreDisplay = document.getElementById('final-score');
+        const restartButton = document.getElementById('restart-button');
+
+        // إضافة أصوات
+        const correctSound = new Audio('correct.mp3'); // صوت عند ضرب المربع الصحيح
+        const wrongSound = new Audio('wrong.mp3'); // صوت عند ضرب المربع الخاطئ
+
+        // إعدادات اللعبة
+        const ROUND_DURATION = 30; // مدة الجولة بالثواني
+        const SQUARE_POP_TIME_MIN = 600; // أقل مدة لظهور المربع (مللي ثانية)
+        const SQUARE_POP_TIME_MAX = 1200; // أقصى مدة لظهور المربع (مللي ثانية)
+
+        // تعريف توزيعات المربعات للجولات المختلفة
+        const roundLayouts = [
+            { rows: 3, cols: 3 }, // الجولة 1
+            { rows: 4, cols: 4 }, // الجولة 2
+            { rows: 4, cols: 5 }, // الجولة 3
+            { rows: 5, cols: 5 }  // الجولة 4
+        ];
+
+        let score = 0;
+        let timeLeft = ROUND_DURATION;
+        let currentRound = 0;
+        let gameInterval = null; // مؤقت عداد الثواني
+        let targetTimeout = null; // مؤقت ظهور المربع التالي
+        let squares = []; // مصفوفة لتخزين عناصر المربعات
+        let activeSquareIndex = -1; // مؤشر المربع النشط حاليًا
+        let isGameOver = true; // اللعبة لا تبدأ حتى الضغط على ابدأ
+
+        // --- وظائف اللعبة ---
+
+        // إنشاء لوحة اللعب بناءً على تخطيط الجولة
+        function createBoard(layout) {
+            gameBoard.innerHTML = ''; // مسح اللوحة القديمة
+            squares = []; // مسح مصفوفة المربعات القديمة
+            gameBoard.style.gridTemplateColumns = `repeat(${layout.cols}, 1fr)`;
+            gameBoard.style.gridTemplateRows = `repeat(${layout.rows}, 1fr)`;
+
+            const totalSquares = layout.rows * layout.cols;
+            for (let i = 0; i < totalSquares; i++) {
+                const square = document.createElement('div');
+                square.classList.add('square');
+                square.dataset.index = i; // إضافة مؤشر للمربع
+                square.addEventListener('click', handleSquareClick);
+                gameBoard.appendChild(square);
+                squares.push(square);
+            }
+        }
+
+        // اختيار مربع عشوائي لتفعيله
+        function activateRandomSquare() {
+            // إلغاء تفعيل المربع القديم إذا كان موجودًا
+            if (activeSquareIndex !== -1 && squares[activeSquareIndex]) {
+                squares[activeSquareIndex].classList.remove('active');
+            }
+
+            // إزالة أي مؤقتات سابقة للمربع النشط
+            clearTimeout(targetTimeout);
+            if (isGameOver) return; // لا تقم بتفعيل مربع جديد إذا انتهت اللعبة
+
+            // اختيار مربع جديد عشوائيًا
+            let randomIndex;
+            do {
+                randomIndex = Math.floor(Math.random() * squares.length);
+            } while (randomIndex === activeSquareIndex); // تأكد من أنه مربع مختلف عن السابق
+
+            activeSquareIndex = randomIndex;
+            squares[activeSquareIndex].classList.add('active');
+
+            // تحديد مدة ظهور المربع التالي بشكل عشوائي
+            const popTime = Math.random() * (SQUARE_POP_TIME_MAX - SQUARE_POP_TIME_MIN) + SQUARE_POP_TIME_MIN;
+            targetTimeout = setTimeout(activateRandomSquare, popTime);
+        }
+
+        // معالجة الضغط على مربع
+        function handleSquareClick(event) {
+            if (isGameOver) return; // تجاهل الضغطات بعد انتهاء اللعبة
+
+            const clickedSquare = event.target;
+            const clickedIndex = parseInt(clickedSquare.dataset.index);
+
+            if (clickedIndex === activeSquareIndex) {
+                // الضغط على المربع الصحيح
+                score++;
+                scoreDisplay.textContent = score;
+                clickedSquare.classList.remove('active');
+                clickedSquare.classList.add('hit'); // إضافة تأثير الضربة
+                correctSound.play(); // تشغيل صوت صحيح
+
+                // إزالة تأثير الضربة بعد فترة قصيرة والبدء بمربع جديد فورًا
+                setTimeout(() => {
+                    clickedSquare.classList.remove('hit');
+                }, 300); // يجب أن تكون مدة تأثير hit في CSS
+
+                // إلغاء المؤقت الحالي وتفعيل مربع جديد فورًا
+                clearTimeout(targetTimeout);
+                activateRandomSquare();
+
+            } else if (!clickedSquare.classList.contains('active') && !clickedSquare.classList.contains('hit')) {
+                // الضغط على مربع خاطئ (اختياري: يمكن إضافة عقوبة هنا)
+                wrongSound.play(); // تشغيل صوت خاطئ
+            }
+        }
+
+        // تحديث عداد الوقت
+        function updateTimer() {
+            timeLeft--;
+            timeLeftDisplay.textContent = timeLeft;
+
+            if (timeLeft <= 0) {
+                endRound();
+            }
+        }
+
+        // بدء جولة جديدة
+        function startRound() {
+            timeLeft = ROUND_DURATION;
+            timeLeftDisplay.textContent = timeLeft;
+            scoreDisplay.textContent = score; // عرض النقاط الحالية (قد تكون من جولة سابقة)
+            roundDisplay.textContent = currentRound + 1; // الجولات تبدأ من 1 للمستخدم
+
+            // تفعيل أول مربع عشوائي
+            activateRandomSquare();
+
+            // بدء عداد الثواني
+            gameInterval = setInterval(updateTimer, 1000);
+        }
+
+        // إنهاء الجولة الحالية
+        function endRound() {
+            clearInterval(gameInterval);
+            clearTimeout(targetTimeout);
+            isGameOver = true; // مؤقتًا حتى بدء الجولة التالية أو انتهاء اللعبة
+
+            // إلغاء تفعيل أي مربع نشط
+            if (activeSquareIndex !== -1 && squares[activeSquareIndex]) {
+                squares[activeSquareIndex].classList.remove('active');
+            }
+            activeSquareIndex = -1;
+
+            currentRound++; // الانتقال للجولة التالية
+
+            if (currentRound < roundLayouts.length) {
+                // هناك جولات متبقية
+                alert(`الجولة ${currentRound} انتهت! استعد للجولة ${currentRound + 1}.`);
+                startGameFlow(); // ابدأ الجولة التالية
+            } else {
+                // انتهت كل الجولات
+                gameOver();
+            }
+        }
+
+        // إنهاء اللعبة بالكامل
+        function gameOver() {
+            isGameOver = true;
+            clearInterval(gameInterval); // التأكد من إيقاف المؤقت
+            clearTimeout(targetTimeout); // التأكد من إيقاف مؤقت المربعات
+
+            finalScoreDisplay.textContent = score;
+            gameOverMessage.style.display = 'block';
+            restartButton.style.display = 'inline-block'; // إظهار زر إعادة اللعب
+            startButton.style.display = 'none'; // إخفاء زر البدء الأصلي
+        }
+
+        // تدفق بدء اللعبة/الجولة
+        function startGameFlow() {
+            isGameOver = false;
+            gameOverMessage.style.display = 'none'; // إخفاء رسالة النهاية
+            restartButton.style.display = 'none'; // إخفاء زر إعادة اللعب
+            startButton.disabled = true; // تعطيل زر البدء أثناء اللعب
+            startButton.style.display = 'none'; // إخفاء زر البدء عند بدء اللعبة
+
+
+            const currentLayout = roundLayouts[currentRound];
+            createBoard(currentLayout); // إنشاء اللوحة للجولة الحالية
+            startRound(); // بدء منطق الجولة (المؤقت وتفعيل المربعات)
+        }
+
+        // بدء اللعبة عند الضغط على زر البداية
+        startButton.addEventListener('click', () => {
+            score = 0; // إعادة تصفير النقاط عند بدء لعبة جديدة
+            currentRound = 0; // البدء من الجولة الأولى
+            startGameFlow();
+        });
+
+        // إعادة اللعب عند الضغط على زر إعادة اللعب
+        restartButton.addEventListener('click', () => {
+             score = 0; // إعادة تصفير النقاط
+             currentRound = 0; // البدء من الجولة الأولى
+             startGameFlow();
+        });
+
+        // الإعداد الأولي عند تحميل الصفحة
+        function initializeGame() {
+            scoreDisplay.textContent = score;
+            timeLeftDisplay.textContent = ROUND_DURATION;
+            roundDisplay.textContent = currentRound + 1;
+            // عرض اللوحة الأولى بشكل مبدئي (اختياري)
+            createBoard(roundLayouts[0]);
+            startButton.disabled = false; // تفعيل زر البدء
+            gameOverMessage.style.display = 'none';
+            restartButton.style.display = 'none';
+        }
+
+        // استدعاء الإعداد الأولي عند تحميل الصفحة
+         initializeGame();
+
+    </script>
+
+</body>
+</html>
